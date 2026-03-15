@@ -1,39 +1,49 @@
-import { useState } from 'react';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import { uploadExcel } from '../api/reportApi';
+import { useState } from "react";
+import UploadCard from "../components/upload/UploadCard";
+import WarningsPanel from "../components/report/WarningsPanel";
+import ReportChart from "../components/report/ReportChart";
+import ReportTable from "../components/report/ReportTable";
+import { uploadExcel } from "../api/reportApi";
+
+import type { FinalReport, ExcelWarning } from "../types/report.types";
 
 export default function UploadPage() {
-    const [file, setFile] = useState<File | null>(null);
-    const [message, setMessage] = useState('');
 
-    const handleUpload = async () => {
-        if (!file) return;
+  const [report, setReport] = useState<FinalReport | null>(null);
+  const [warnings, setWarnings] = useState<ExcelWarning[]>([]);
+  const [loading, setLoading] = useState(false);
 
-        try {
-            await uploadExcel(file);
-            setMessage('Archivo procesado correctamente');
-        } catch {
-            setMessage('Error al procesar el archivo');
-        }
-    };
+  const handleUpload = async (file: File) => {
+    setLoading(true);
 
-    return (
-        <DashboardLayout>
-            <div className="bg-white p-6 rounded shadow -max-w-lg">
-                <h2 className="text-xl font-semibold mb-4">Importar Archivo</h2>
-                <input
-                    type="file"
-                    accept=".xlsx, .xls"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    />
-                <button
-                    onClick={handleUpload}
-                    className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                    Importar
-                    </button>
-                    {message && <p className="mt-4 text-sm">{message}</p>}
-            </div>
-        </DashboardLayout>
-    );
+    try {
+      const result = await uploadExcel(file);
+
+      setReport(result.report);
+      setWarnings(result.warnings ?? []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 👇 EXTRAEMOS EL PERIODO ACTIVO
+  const period = report?.periods?.[0];
+  const periodData = period ? report?.data?.[period] : undefined;
+
+  return (
+    <div className="p-6 space-y-6">
+
+      <UploadCard onUpload={handleUpload} loading={loading} />
+
+      <WarningsPanel warnings={warnings} />
+
+      {periodData && (
+        <>
+          <ReportChart data={periodData} />
+          <ReportTable data={periodData} />
+        </>
+      )}
+
+    </div>
+  );
 }
